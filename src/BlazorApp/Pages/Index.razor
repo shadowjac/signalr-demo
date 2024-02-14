@@ -1,0 +1,59 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
+@inject ILogger<Index> Logger
+
+<PageTitle>Home</PageTitle>
+
+<h1>Hello, world!</h1>
+
+Welcome to your new app.
+
+Messages from the server
+<ul>
+    @foreach (var message in _messages)
+    {
+        <li>@message</li>
+    }
+</ul>
+
+@code{
+    private HubConnection? _connection;
+    private readonly List<string> _messages = new();
+
+    const string Token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1bmlxdWVfbmFtZSI6IkFuZHJlc0MiLCJzdWIiOiJBbmRyZXNDIiwianRpIjoiODVjODNlYWIiLCJhdWQiOlsiaHR0cDovL2xvY2FsaG9zdDozOTQxMiIsImh0dHBzOi8vbG9jYWxob3N0OjQ0MzQwIiwiaHR0cDovL2xvY2FsaG9zdDo1MTk2IiwiaHR0cHM6Ly9sb2NhbGhvc3Q6NzEwNyJdLCJuYmYiOjE3MDc4ODg1NTIsImV4cCI6MTcxNTY2NDU1MiwiaWF0IjoxNzA3ODg4NTUzLCJpc3MiOiJkb3RuZXQtdXNlci1qd3RzIn0.01hc5PxN0djdHTWT4M2SmsHqWlAAeuGdIQS-MX52FJQ"; 
+
+    protected override async Task OnInitializedAsync()
+    {
+        _connection = new HubConnectionBuilder()
+            .WithUrl("https://localhost:7107/notifications",
+                o => 
+                    o.AccessTokenProvider = () => Task.FromResult(Token)!)
+            .Build();
+
+        _connection.On<string>("ReceiveNotification", message =>
+        {
+            //var logger = LoggerFactory.CreateLogger<Home>();
+            Logger.LogInformation("Received message {Message}", message);
+            _messages.Add(message);
+
+            InvokeAsync(StateHasChanged);
+        });
+
+        await _connection.StartAsync();
+
+        Logger.LogInformation("Is Connected: {IsConnected}", IsConnected);
+    }
+
+    private bool IsConnected =>
+        _connection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_connection is not null)
+        {
+            await _connection.DisposeAsync();
+        }
+    }
+
+}
